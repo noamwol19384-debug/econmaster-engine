@@ -72,7 +72,8 @@ jobs:
 
       - name: Tell Make (success)
         if: success() && env.MOCK != '1'
-        run: curl -sf -X POST -H "Content-Type: application/json" --data @callback.json "${{ secrets.MAKE_WEBHOOK_URL }}"
+        run: |
+          curl -sf -X POST -H "Content-Type: application/json" --data @callback.json "${{ secrets.MAKE_WEBHOOK_URL }}"
 
       - name: Tell Make (failure)
         if: failure() && env.MOCK != '1'
