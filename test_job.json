@@ -1,0 +1,19 @@
+{
+ "title": "How Blockbuster Lost to a $50 Million Offer",
+ "thumbnail": {"text": "The $50M mistake", "highlight": "$50M", "query": "empty video rental store"},
+ "description": "In 2000, Netflix offered itself to Blockbuster. Here's what happened next.",
+ "tags": ["blockbuster", "netflix", "business story"],
+ "chapters": [
+  {"title": "The Offer", "scenes": [
+    {"narration": "In the year 2000, three men walked into a Dallas office with an offer that could have changed everything.", "queries": ["dallas skyline", "business meeting"], "overlay": {"type": "date", "text": "Dallas, 2000", "sub": "Blockbuster headquarters"}},
+    {"narration": "The price was fifty million dollars. Blockbuster laughed them out of the room.", "queries": ["money cash"], "overlay": {"type": "stat", "text": "$50,000,000", "sub": "The asking price for Netflix"}}
+  ]},
+  {"title": "The Empire", "scenes": [
+    {"narration": "At its peak, Blockbuster ran over nine thousand stores and made billions from late fees alone.", "queries": ["video rental store", "dvd shelves"]},
+    {"narration": "Customers hated those fees. One executive later called them a tax on forgetting.", "queries": ["frustrated customer"], "overlay": {"type": "quote", "text": "It was a tax on forgetting.", "sub": "Former executive"}}
+  ]},
+  {"title": "The Fall", "scenes": [
+    {"narration": "By 2010 the company filed for bankruptcy. Netflix was worth billions.", "queries": ["closed store", "stock chart falling"]}
+  ]}
+ ]
+}

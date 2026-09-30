@@ -1,0 +1,82 @@
+name: render
+
+on:
+  repository_dispatch:
+    types: [render]
+  workflow_dispatch: {}   # manual test run with test_job.json (MOCK)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          pip install -q requests pillow
+
+      - name: Write job file
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            cp test_job.json job.json; echo "MOCK=1" >> $GITHUB_ENV
+          else
+            python3 -c "import os,json; p=json.loads(os.environ['PAYLOAD']); j=p.get('job'); j=json.loads(j) if isinstance(j,str) else j; json.dump(j,open('job.json','w'))"
+          fi
+          echo "JOB_ID=${{ github.event.client_payload.job_id || github.run_id }}" >> $GITHUB_ENV
+
+      - name: Delete drafts older than 3 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cutoff=$(date -d '3 days ago' +%s)
+          gh release list --limit 100 --json tagName,createdAt -q '.[] | "\(.tagName) \(.createdAt)"' | while read tag created; do
+            if [ $(date -d "$created" +%s) -lt $cutoff ]; then gh release delete "$tag" --yes --cleanup-tag || true; fi
+          done
+
+      - name: Render
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          TARGET_MB: ${{ vars.TARGET_MB || '95' }}
+        run: python3 render.py job.json
+
+      - name: Publish files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="render-${{ github.run_id }}"
+          gh release create "$TAG" out/video.mp4 out/thumbnail.jpg out/subtitles.srt out/meta.json \
+            --title "$TAG" --notes "draft render" --prerelease
+          BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
+          python3 - << EOF
+          import json
+          m = json.load(open("out/meta.json"))
+          m.update(status="ok", job_id="$JOB_ID",
+                   video_url="$BASE/video.mp4", thumbnail_url="$BASE/thumbnail.jpg",
+                   srt_url="$BASE/subtitles.srt", run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")
+          json.dump(m, open("callback.json", "w"), ensure_ascii=False)
+          EOF
+
+      - name: Tell Make (success)
+        if: success() && env.MOCK != '1'
+        run: curl -sf -X POST -H "Content-Type: application/json" --data @callback.json "${{ secrets.MAKE_WEBHOOK_URL }}"
+
+      - name: Tell Make (failure)
+        if: failure() && env.MOCK != '1'
+        run: |
+          curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"status\":\"error\",\"job_id\":\"$JOB_ID\",\"run_url\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "${{ secrets.MAKE_WEBHOOK_URL }}"
